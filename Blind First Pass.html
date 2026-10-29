@@ -1,0 +1,1021 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Blind First Pass</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+/* Layout: an editorial front page (serif headlines, one product preview) that hands off to a quiet two-pane workbench: candidate list on the left, one redacted resume on the right. Palette: Editorial Sage. */
+:root {
+  --ivory: #F7F4EC;        /* page */
+  --paper: #FCFBF6;        /* panels, resume sheet */
+  --ink: #1F2A24;          /* forest charcoal: text, redaction bars */
+  --muted: #5D6A62;        /* secondary text */
+  --line: #D9DDD3;         /* soft green-gray rules */
+  --wash: #EBEEE6;         /* soft green-gray fill */
+  --sage: #7F9B86;         /* muted sage: marks, focus */
+  --sage-deep: #45614F;    /* primary actions */
+  --on-sage: #FCFBF6;
+  --advance: #2F6A47; --advance-soft: #DDEBDF;
+  --pass: #8A6239;   --pass-soft: #F1E6D6;
+  --alert: #9A3B30;  --alert-soft: #F6E3DF;
+  --font-display: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ivory: #141A16; --paper: #1A221D; --ink: #E9E6DC; --muted: #A2ADA4; --line: #2E3832; --wash: #222B25;
+    --sage: #94B09B; --sage-deep: #A9C4AF; --on-sage: #142019;
+    --advance: #8FCFA5; --advance-soft: #1F3527; --pass: #E0B585; --pass-soft: #3A2C1C; --alert: #F0A49A; --alert-soft: #3C201C;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ivory: #141A16; --paper: #1A221D; --ink: #E9E6DC; --muted: #A2ADA4; --line: #2E3832; --wash: #222B25;
+  --sage: #94B09B; --sage-deep: #A9C4AF; --on-sage: #142019;
+  --advance: #8FCFA5; --advance-soft: #1F3527; --pass: #E0B585; --pass-soft: #3A2C1C; --alert: #F0A49A; --alert-soft: #3C201C;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--ivory); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+a { color: inherit; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
+p { margin: 0; }
+.serif { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.005em; }
+.container { max-width: 1140px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--sage-deep); }
+.id { font-variant-numeric: tabular-nums; letter-spacing: .04em; font-weight: 600; }
+
+/* Controls */
+.btn { font: inherit; font-weight: 500; cursor: pointer; border-radius: var(--r); border: 1px solid var(--line); background: var(--paper); color: var(--ink); padding: 8px 14px; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; line-height: 1.3; transition: border-color .15s, background .15s; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn.primary { background: var(--sage-deep); border-color: var(--sage-deep); color: var(--on-sage); }
+.btn.primary:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--ivory); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.ghost:hover:not(:disabled) { background: var(--wash); border-color: transparent; }
+.btn.danger { color: var(--alert); border-color: var(--alert); background: transparent; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, .row-item:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
+input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], select, textarea { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; width: 100%; min-width: 0; }
+textarea { resize: vertical; }
+label.lbl { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
+.field { display: grid; gap: 2px; min-width: 0; }
+.field .err { color: var(--alert); font-size: 13px; }
+.field.invalid input { border-color: var(--alert); }
+.chip { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--wash); color: var(--muted); white-space: nowrap; }
+.chip.new { background: var(--wash); color: var(--ink); }
+.chip.review { background: transparent; border: 1px solid var(--sage); color: var(--sage-deep); }
+.chip.advanced { background: var(--advance-soft); color: var(--advance); }
+.chip.passed { background: var(--pass-soft); color: var(--pass); }
+.chip.revealed { background: var(--ink); color: var(--ivory); }
+.demo-note { font-size: 12.5px; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r); padding: 8px 12px; }
+.notice { font-size: 14px; border-left: 3px solid var(--sage); background: var(--wash); padding: 10px 14px; border-radius: 0 var(--r) var(--r) 0; }
+.notice.alert { border-left-color: var(--alert); background: var(--alert-soft); }
+
+/* Redaction */
+.redact { display: inline-block; background: var(--ink); color: var(--ivory); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; vertical-align: 1px; white-space: nowrap; }
+.redact.name { padding: 3px 12px; font-size: 11.5px; }
+.sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 28px clamp(16px, 4vw, 40px); font-size: 14.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.sheet .ln { min-height: 1.1em; }
+.sheet .ln.h { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--sage-deep); margin-top: 16px; padding-bottom: 3px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.sheet .ln.first { margin-top: 0; }
+
+/* Landing */
+.site-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 18px; }
+.logo { display: inline-flex; align-items: baseline; gap: 6px; font-family: var(--font-display); font-size: 22px; text-decoration: none; color: var(--ink); }
+.logo .bar { display: inline-block; width: 26px; height: 11px; background: var(--ink); border-radius: 1px; transform: translateY(-1px); }
+.site-nav .acts { display: flex; gap: 8px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 56px 36px; max-width: 760px; }
+.hero h1 { font-family: var(--font-display); font-size: clamp(40px, 6.4vw, 68px); line-height: 1.02; letter-spacing: -0.015em; }
+.hero p.lede { font-size: 18px; color: var(--muted); max-width: 58ch; }
+.hero .cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.preview { border: 1px solid var(--line); border-radius: 10px; background: var(--paper); overflow: hidden; }
+.preview .pv-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 13px; flex-wrap: wrap; }
+.preview .pv-body { display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; min-height: 340px; }
+.preview .pv-list { border-right: 1px solid var(--line); padding: 10px; display: grid; gap: 2px; align-content: start; font-size: 13.5px; }
+.preview .pv-list div { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: var(--r); }
+.preview .pv-list div.on { background: var(--wash); }
+.preview .pv-sheet { padding: 20px; }
+.preview .pv-sheet .sheet { padding: 18px 22px; font-size: 13.5px; }
+.preview .pv-side { border-left: 1px solid var(--line); padding: 16px; display: grid; gap: 12px; align-content: start; font-size: 13.5px; }
+@media (max-width: 900px) { .preview .pv-body { grid-template-columns: minmax(0, 1fr); } .preview .pv-list { display: none; } .preview .pv-side { border-left: 0; border-top: 1px solid var(--line); } }
+.section { padding-block: 56px; border-top: 1px solid var(--line); display: grid; gap: 28px; }
+.section h2 { font-family: var(--font-display); font-size: clamp(28px, 3.6vw, 38px); line-height: 1.1; max-width: 22ch; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; counter-reset: s; }
+@media (max-width: 760px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+.steps li { list-style: none; display: grid; gap: 6px; padding-top: 14px; border-top: 2px solid var(--ink); }
+.steps li::before { counter-increment: s; content: "Step " counter(s); font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--sage-deep); }
+.steps h3 { font-size: 18px; font-weight: 600; }
+.steps ol { padding: 0; margin: 0; display: contents; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--paper); }
+@media (max-width: 760px) { .split { grid-template-columns: minmax(0, 1fr); } }
+.split > div { padding: 24px; display: grid; gap: 12px; align-content: start; }
+.split > div + div { border-left: 1px solid var(--line); }
+@media (max-width: 760px) { .split > div + div { border-left: 0; border-top: 1px solid var(--line); } }
+.split h3 { font-family: var(--font-display); font-size: 24px; }
+.split ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 40px; }
+@media (max-width: 760px) { .features { grid-template-columns: minmax(0, 1fr); } }
+.features div { display: grid; gap: 4px; }
+.features h3 { font-size: 17px; font-weight: 600; }
+.final { padding-block: 64px; border-top: 1px solid var(--line); display: grid; gap: 18px; justify-items: start; }
+.final h2 { font-family: var(--font-display); font-size: clamp(30px, 4vw, 44px); line-height: 1.08; max-width: 20ch; }
+footer.site { border-top: 1px solid var(--line); padding-block: 20px 40px; font-size: 13px; color: var(--muted); display: flex; gap: 12px 24px; flex-wrap: wrap; justify-content: space-between; }
+
+/* Auth */
+.auth { min-height: 100%; display: grid; place-items: start center; padding-block: 48px; }
+.auth-card { width: 100%; max-width: 420px; display: grid; gap: 18px; }
+.auth-card h1 { font-family: var(--font-display); font-size: 36px; line-height: 1.1; }
+.auth-card form { display: grid; gap: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+.seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg2 label { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; display: flex; gap: 8px; align-items: flex-start; cursor: pointer; font-size: 13.5px; }
+.seg2 input { margin-top: 3px; }
+.seg2 label:has(input:checked) { border-color: var(--sage-deep); background: var(--wash); }
+
+/* App shell */
+.appbar { border-bottom: 1px solid var(--line); background: var(--ivory); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--ivory); }
+.appbar .container { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; flex-wrap: wrap; }
+.appbar nav { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; }
+.appbar nav a { text-decoration: none; padding: 6px 12px; border-radius: var(--r); color: var(--muted); font-weight: 500; }
+.appbar nav a.on { color: var(--ink); background: var(--wash); }
+.who { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.who .co { color: var(--muted); }
+main.app { padding-block: 24px 64px; display: grid; gap: 20px; }
+.pagehead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 20px; flex-wrap: wrap; }
+.pagehead h1 { font-family: var(--font-display); font-size: clamp(28px, 3.4vw, 36px); line-height: 1.1; }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.panel h2 { font-size: 17px; font-weight: 600; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+tbody tr.link { cursor: pointer; }
+tbody tr.link:hover { background: var(--wash); }
+td.num { font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; }
+.empty { display: grid; gap: 10px; justify-items: start; padding: 28px; border: 1px dashed var(--line); border-radius: 10px; }
+.empty h2 { font-family: var(--font-display); font-size: 26px; font-weight: 400; }
+.formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+
+/* Job workbench */
+.jobmeta { display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 13.5px; color: var(--muted); }
+.counts { display: flex; gap: 6px; flex-wrap: wrap; }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.toolbar .field { flex: 1 1 180px; }
+.toolbar .field.wide { flex: 2 1 260px; }
+.uploads { display: grid; gap: 4px; font-size: 13.5px; }
+.uploads div { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 6px 10px; border-radius: var(--r); background: var(--wash); flex-wrap: wrap; }
+.uploads .st-error { color: var(--alert); }
+.uploads .st-done { color: var(--advance); }
+.spinner { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--sage-deep); border-radius: 50%; display: inline-block; animation: spin .8s linear infinite; vertical-align: -1px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.bench { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.clist { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); }
+@media (max-width: 860px) { .clist { position: static; } }
+.clist .head { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; }
+.clist ul { list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; max-height: 62vh; overflow-y: auto; }
+@media (max-width: 860px) { .clist ul { max-height: none; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.row-item { width: 100%; font: inherit; color: inherit; background: transparent; border: 1px solid transparent; border-radius: var(--r); padding: 8px 10px; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; cursor: pointer; }
+.row-item:hover { background: var(--wash); }
+.row-item.on { background: var(--wash); border-color: var(--sage); }
+.row-item .rcv { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.detail { display: grid; gap: 16px; min-width: 0; }
+.dhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.dhead h2 { font-family: var(--font-display); font-size: 30px; }
+.summary { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+.summary .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.summary h3 { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--sage-deep); }
+.summary p.sent { font-size: 16px; line-height: 1.5; }
+.summary dl { margin: 0; display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 14px; font-size: 14px; }
+@media (max-width: 520px) { .summary dl { grid-template-columns: minmax(0, 1fr); } .summary dt { margin-top: 6px; } }
+.summary dt { color: var(--muted); font-size: 13px; }
+.summary dd { margin: 0; }
+.summary dd q { quotes: "\201C" "\201D"; }
+.summary .src { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+.reqs { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; display: grid; gap: 8px; }
+.reqs h3 { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--sage-deep); }
+.reqs label { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; cursor: pointer; }
+.reqs input { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--sage-deep); flex: none; }
+.decide { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; position: sticky; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); box-shadow: 0 10px 24px -18px rgba(31, 42, 36, .5); }
+.decide .grp { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn.adv { border-color: var(--advance); color: var(--advance); font-weight: 600; }
+.btn.adv.sel { background: var(--advance); color: var(--paper); }
+.btn.pas { border-color: var(--pass); color: var(--pass); font-weight: 600; }
+.btn.pas.sel { background: var(--pass); color: var(--paper); }
+.decide select { width: auto; }
+kbd { font-family: var(--font-body); font-size: 11px; border: 1px solid currentColor; border-radius: 3px; padding: 0 4px; opacity: .7; }
+.reveal { border: 1px solid var(--ink); }
+textarea.copy { min-height: 96px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.confirm { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--wash); border-radius: var(--r); padding: 10px 12px; font-size: 14px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); background: var(--ink); color: var(--ivory); padding: 9px 16px; border-radius: var(--r); font-size: 14px; z-index: 30; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: reduce) { *, .spinner { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="root"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+/* =========================================================
+   Storage: demo only. Everything lives in this browser.
+   ========================================================= */
+const mem = {};
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : (k in mem ? mem[k] : d); } catch (e) { return k in mem ? mem[k] : d; } },
+  set(k, v) { mem[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) {} }
+};
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = t => new Date(t).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+const fmtTime = t => new Date(t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+async function hashPw(pw, salt) {
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pw));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch (e) { let h = 0; for (const c of salt + pw) h = (h * 31 + c.charCodeAt(0)) | 0; return "x" + h; }
+}
+
+/* =========================================================
+   Redaction (MVP1 rules, unchanged). Pattern based, no AI.
+   ========================================================= */
+const HEADERS = new Set(["SUMMARY","EDUCATION","EXPERIENCE","SKILLS","OBJECTIVE","PROFILE","CONTACT","ACTIVITIES","PROJECTS","RESUME","CURRICULUM","VITAE","PROFESSIONAL","WORK","HISTORY","CERTIFICATIONS","LEADERSHIP","INTERESTS"]);
+const NAME_RE = /^[\p{Lu}][\p{L}'’.-]*(?:[ \t]+[\p{Lu}][\p{L}'’.-]*){1,3}$/u;
+function detectName(text) {
+  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 4);
+  for (const line of lines) {
+    const cand = line.split(/[|•·,]/)[0].trim();
+    if (!NAME_RE.test(cand)) continue;
+    if (cand.split(/[ \t]+/).some(w => HEADERS.has(w.toUpperCase().replace(/[^A-Z]/g, "")))) continue;
+    return cand;
+  }
+  return null;
+}
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const PATTERNS = [
+  ["email", /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g],
+  ["link", /\b(?:https?:\/\/)?(?:www\.)?(?:linkedin\.com|github\.com|behance\.net|[\w-]+\.(?:com|io|dev|me|net|org|co))\/[^\s|,;]*/gi],
+  ["link", /\bhttps?:\/\/[^\s|,;]+/gi],
+  ["phone", /(?:\+?1[ .-]?)?\(?\b\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}\b/g],
+  ["address", /\b\d{1,5}[ \t]+(?:[\p{L}0-9.'-]+[ \t]+){0,4}(?:St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Pl|Place|Ln|Lane|Dr|Drive|Pkwy|Parkway|Ct|Court|Ter|Terrace|Way)\b\.?(?:,?[ \t]*(?:Apt|Unit|#)[ \t]*[\w-]+)?/giu],
+  ["location", /\b\p{Lu}[\p{L}.]*(?:[ \t]+\p{Lu}[\p{L}.]*){0,2},[ \t]*(?:NY|NJ|CT|PA|New York)(?:[ \t]+\d{5}(?:-\d{4})?)?\b/gu],
+  ["location", /\b(?:NY|NJ|CT|PA)[ \t]+\d{5}(?:-\d{4})?\b/g],
+  ["pronouns", /\b(?:she\/her|he\/him|they\/them)(?:\/\w+)?\b/gi]
+];
+function redact(text) {
+  const ranges = [];
+  const name = detectName(text);
+  if (name) {
+    const parts = [name, ...name.split(/[ \t]+/).map(w => w.replace(/[.,]/g, "")).filter(w => w.length >= 2)];
+    for (const p of parts) {
+      const re = new RegExp("(?<![\\p{L}])" + reEsc(p) + "(?![\\p{L}])", "giu");
+      let m; while ((m = re.exec(text))) ranges.push({ s: m.index, e: m.index + m[0].length, t: "name" });
+    }
+  }
+  const found = {};
+  for (const [type, re] of PATTERNS) {
+    re.lastIndex = 0;
+    let m; while ((m = re.exec(text))) {
+      if (!m[0]) { re.lastIndex++; continue; }
+      ranges.push({ s: m.index, e: m.index + m[0].length, t: type });
+      if (!found[type]) found[type] = m[0];
+    }
+  }
+  ranges.sort((a, b) => a.s - b.s || b.e - a.e);
+  const merged = [];
+  for (const r of ranges) { const l = merged[merged.length - 1]; if (l && r.s < l.e) { if (r.e > l.e) l.e = r.e; } else merged.push({ ...r }); }
+  let html = "", plain = "", pos = 0;
+  for (const r of merged) {
+    html += esc(text.slice(pos, r.s)) + `<span class="redact ${r.t}">${r.t} hidden</span>`;
+    plain += text.slice(pos, r.s) + `[${r.t} hidden]`;
+    pos = r.e;
+  }
+  html += esc(text.slice(pos)); plain += text.slice(pos);
+  return { html, plain, name, email: found.email || "", phone: found.phone || "" };
+}
+function toSheet(html) {
+  let first = true;
+  return html.split(/\r?\n/).map(l => {
+    const t = l.replace(/<[^>]+>/g, "").trim();
+    const isHead = t && !l.includes("redact") && t.length <= 32 && t === t.toUpperCase() && /[A-Z]{3}/.test(t);
+    const cls = "ln" + (isHead ? " h" + (first ? " first" : "") : "");
+    if (t) first = false;
+    return `<div class="${cls}">${l || "&nbsp;"}</div>`;
+  }).join("");
+}
+
+/* =========================================================
+   Sample job (fictional people, written for this demo)
+   ========================================================= */
+const SAMPLE = [
+{ text: `Lakisha Washington
+Brooklyn, NY 11216 | (347) 555-0142 | lakisha.washington@example.com | linkedin.com/in/lakishaw
+EDUCATION
+B.S. Business Administration, Brooklyn College (CUNY), May 2026. GPA 3.4
+EXPERIENCE
+Operations Intern, Fulton Street Supply Co. (Jun 2025 to Aug 2025)
+- Tracked inbound shipments for 40+ vendors in a shared Google Sheet
+- Cut weekly reorder errors by building a simple stock alert formula
+Cashier and Shift Lead, Key Food (2022 to 2025)
+- Opened and closed the store 3 days a week, balanced registers
+SKILLS
+Excel (VLOOKUP, pivot tables), Google Workspace, QuickBooks basics, scheduling`,
+  summary: { sentence: "Business administration graduate (May 2026) with a summer operations internship and three years of retail shift work.",
+    points: [["Education", "B.S. Business Administration, Brooklyn College (CUNY), May 2026"], ["Experience", "Tracked inbound shipments for 40+ vendors in a shared Google Sheet"], ["Experience", "Cashier and Shift Lead, Key Food (2022 to 2025)"], ["Skills listed", "Excel (VLOOKUP, pivot tables), Google Workspace, QuickBooks basics, scheduling"]] } },
+{ text: `Emily Walsh
+Brooklyn, NY 11215 | 718-555-0187 | emily.walsh@example.com
+EDUCATION
+B.A. Economics, Hunter College (CUNY), May 2026. GPA 3.3
+EXPERIENCE
+Office Assistant, Park Slope Dental Group (2024 to 2026)
+- Scheduled 60+ patient appointments a week and handled insurance calls
+- Reorganized the supply closet and set up a monthly inventory check
+Summer Camp Counselor, YMCA (2023)
+SKILLS
+Excel, Google Sheets, Dentrix, customer service`,
+  summary: { sentence: "Economics graduate (May 2026) with two years as an office assistant covering scheduling, insurance calls and supply inventory.",
+    points: [["Education", "B.A. Economics, Hunter College (CUNY), May 2026"], ["Experience", "Scheduled 60+ patient appointments a week and handled insurance calls"], ["Experience", "Reorganized the supply closet and set up a monthly inventory check"], ["Skills listed", "Excel, Google Sheets, Dentrix, customer service"]] } },
+{ text: `Jamal Robinson
+Queens, NY 11434 | (929) 555-0119 | jrobinson@example.com | github.com/jrobinson-ops
+SUMMARY
+Jamal is an organized problem solver who likes making messy processes simple.
+EDUCATION
+B.S. Supply Chain Management, Baruch College (CUNY), December 2025. GPA 3.5
+EXPERIENCE
+Warehouse Associate, Amazon Fulfillment Center JFK8 (2023 to 2025)
+- Picked and packed 300+ orders per shift; trained 5 new hires
+Operations Volunteer, Queens Community Food Pantry (2022 to 2024)
+- Coordinated Saturday distribution for 150 families
+ACTIVITIES
+National Society of Black Engineers, Baruch chapter, events chair
+SKILLS
+Excel, Airtable, forklift certified, basic SQL`,
+  summary: { sentence: "Supply chain management graduate (December 2025) with two years of warehouse work and two years coordinating volunteer food distribution.",
+    points: [["Education", "B.S. Supply Chain Management, Baruch College (CUNY), December 2025"], ["Experience", "Picked and packed 300+ orders per shift; trained 5 new hires"], ["Experience", "Coordinated Saturday distribution for 150 families"], ["Skills listed", "Excel, Airtable, forklift certified, basic SQL"]] } },
+{ text: `Greg Baker
+Staten Island, NY 10301 | (718) 555-0133 | greg.baker@example.com
+EDUCATION
+B.S. Business, College of Staten Island (CUNY), May 2026. GPA 3.2
+EXPERIENCE
+Logistics Intern, Harbor Freight Movers (Summer 2025)
+- Planned routes for 4 moving crews using Google Maps and a shared calendar
+Barista, Everything Goes Cafe (2022 to 2025)
+SKILLS
+Excel, Google Workspace, route planning, Spanish (conversational)`,
+  summary: { sentence: "Business graduate (May 2026) with a summer logistics internship planning crew routes and three years in food service.",
+    points: [["Education", "B.S. Business, College of Staten Island (CUNY), May 2026"], ["Experience", "Planned routes for 4 moving crews using Google Maps and a shared calendar"], ["Experience", "Barista, Everything Goes Cafe (2022 to 2025)"], ["Skills listed", "Excel, Google Workspace, route planning"]] } },
+{ text: `Ximena Rodríguez
+Bronx, NY 10453 | (646) 555-0171 | ximena.rodriguez@example.com | she/her
+EDUCATION
+A.A.S. Business Management, Bronx Community College (CUNY), 2024
+B.S. Business, Lehman College (CUNY), expected May 2026. GPA 3.6
+EXPERIENCE
+Administrative Assistant, Bronx Family Health Center (2024 to 2026)
+- Managed intake paperwork and data entry for 200+ patients a month
+- Built a Google Form that replaced paper sign-in sheets
+ACTIVITIES
+Hispanic Business Student Association, treasurer
+SKILLS
+Excel, Google Forms, data entry (70 wpm), Spanish (native)`,
+  summary: { sentence: "Business student (expected May 2026) with an associate degree and two years of administrative work on patient intake and data entry.",
+    points: [["Education", "B.S. Business, Lehman College (CUNY), expected May 2026"], ["Experience", "Managed intake paperwork and data entry for 200+ patients a month"], ["Experience", "Built a Google Form that replaced paper sign-in sheets"], ["Skills listed", "Excel, Google Forms, data entry (70 wpm)"]] } },
+{ text: `Kevin O'Connor
+Manhattan, NY 10025 | 212-555-0164 | kevin.oconnor@example.com | linkedin.com/in/kevinoc
+EDUCATION
+B.A. Political Science, City College of New York (CUNY), May 2026. GPA 3.1
+EXPERIENCE
+Front Desk Associate, Upper West Side Fitness (2023 to 2026)
+- Handled member check-in, billing questions and class scheduling
+Campaign Volunteer, City Council race (2024)
+- Organized volunteer shifts for 30 canvassers
+SKILLS
+Mindbody, Slack, scheduling`,
+  summary: { sentence: "Political science graduate (May 2026) with three years at a fitness front desk and a season organizing volunteer shifts.",
+    points: [["Education", "B.A. Political Science, City College of New York (CUNY), May 2026"], ["Experience", "Handled member check-in, billing questions and class scheduling"], ["Experience", "Organized volunteer shifts for 30 canvassers"], ["Skills listed", "Mindbody, Slack, scheduling"]] } },
+{ text: `Oluwaseun Adeyemi
+Brooklyn, NY 11226 | (347) 555-0158 | seun.adeyemi@example.com
+EDUCATION
+B.S. Information Systems, Brooklyn College (CUNY), May 2026. GPA 3.7
+EXPERIENCE
+IT and Operations Intern, Flatbush Community Credit Union (2025)
+- Set up a ticket tracker for staff requests and closed 90% within 2 days
+Delivery Coordinator, Flatbush Meals on Wheels (2023 to 2025)
+- Scheduled 12 volunteer drivers and fixed recurring route overlaps
+SKILLS
+Excel, Airtable, Zendesk, Python basics`,
+  summary: { sentence: "Information systems graduate (May 2026) with an IT and operations internship and two years coordinating volunteer delivery drivers.",
+    points: [["Education", "B.S. Information Systems, Brooklyn College (CUNY), May 2026"], ["Experience", "Set up a ticket tracker for staff requests and closed 90% within 2 days"], ["Experience", "Scheduled 12 volunteer drivers and fixed recurring route overlaps"], ["Skills listed", "Excel, Airtable, Zendesk, Python basics"]] } },
+{ text: `Mei Lin Chen
+Flushing, NY 11354 | (718) 555-0126 | meilin.chen@example.com
+EDUCATION
+B.B.A. Accounting, Queens College (CUNY), May 2026. GPA 3.5
+EXPERIENCE
+Bookkeeping Assistant, Main Street Tax Services (Jan to Apr 2025 and 2026)
+- Prepared client files and reconciled receipts for 80+ tax returns
+Retail Associate, Target, College Point (2022 to 2024)
+SKILLS
+Excel, QuickBooks, inventory counts, Mandarin (fluent)`,
+  summary: { sentence: "Accounting graduate (May 2026) with two tax seasons of bookkeeping support and two years of retail work.",
+    points: [["Education", "B.B.A. Accounting, Queens College (CUNY), May 2026"], ["Experience", "Prepared client files and reconciled receipts for 80+ tax returns"], ["Experience", "Retail Associate, Target, College Point (2022 to 2024)"], ["Skills listed", "Excel, QuickBooks, inventory counts"]] } }
+];
+
+/* =========================================================
+   App state
+   ========================================================= */
+const ui = { sel: {}, search: "", status: "all", sort: "received-desc", uploads: [], lockStep: false, delStep: null, wipeStep: false, newJob: false, summarizing: {}, errors: {} };
+const STATUS_LABEL = { new: "New", review: "In review", advanced: "Advanced", passed: "Passed" };
+const STATUS_ORDER = { new: 0, review: 1, advanced: 2, passed: 3 };
+function users() { return store.get("bfp.users", []); }
+function session() { return store.get("bfp.session", null); }
+function me() { const s = session(); return s ? users().find(u => u.id === s.userId) || null : null; }
+function dkey() { return "bfp.data." + me().orgId; }
+function vkey() { return "bfp.vault." + me().orgId; }
+function data() { return store.get(dkey(), { jobs: [], log: [], retention: 12, seq: 1000 }); }
+function save(d) { store.set(dkey(), d); }
+function vault() { return store.get(vkey(), {}); }
+function saveVault(v) { store.set(vkey(), v); }
+function log(d, action, record) { d.log.unshift({ t: Date.now(), who: me().name, action, record: record || "" }); }
+function nextCode(d) { d.seq += Math.floor(Math.random() * 37) + 11; return "A-" + d.seq; }
+
+function makeCandidate(d, v, text, receivedAt, prepared) {
+  const r = redact(text);
+  const code = nextCode(d);
+  v[code] = { name: r.name || "(name not detected)", email: r.email, phone: r.phone };
+  return { code, receivedAt, html: toSheet(r.html), plain: r.plain, nameFound: !!r.name, status: "new", reason: "", checks: {},
+    summary: prepared ? { sentence: prepared.sentence, points: prepared.points, source: "prepared", at: Date.now() } : null };
+}
+function seedSampleJob(d, v) {
+  const job = { id: uid(), title: "Operations Associate", location: "Red Hook, Brooklyn (on site)", payMin: 22, payMax: 25, sample: true, createdAt: Date.now(), locked: false,
+    requirements: ["Uses spreadsheets (Excel or Google Sheets) at work", "Has coordinated schedules, shipments or inventory", "Has worked with customers, patients or a team"], candidates: [] };
+  const order = SAMPLE.map((_, i) => i).sort(() => Math.random() - .5);
+  const base = Date.now() - 9 * 864e5;
+  order.forEach((i, n) => job.candidates.push(makeCandidate(d, v, SAMPLE[i].text, base + n * 864e5 * 1.1 + i * 3.6e6, SAMPLE[i].summary)));
+  d.jobs.unshift(job);
+  log(d, "Created sample job with 8 fictional applicants", job.title);
+}
+
+/* =========================================================
+   Claude summaries (sample capability)
+   ========================================================= */
+let samplePromise = null;
+function getSample() { if (!samplePromise) samplePromise = (window.claude && window.claude.use) ? window.claude.use("sample").catch(() => null) : Promise.resolve(null); return samplePromise; }
+let sampleState = "unknown"; /* unknown | ready | none */
+getSample().then(s => { sampleState = s ? "ready" : "none"; if (currentRoute().startsWith("job-")) render(); });
+const JUDGMENT = /\b(strong|stronger|strongest|weak|weaker|fit|fits|ideal|excellent|impressive|recommend\w*|qualified|unqualified|overqualified|best|top|great|good|poor|promising|standout|stellar|solid|outstanding|perfect|exceptional|suitable|unsuitable|candidate for)\b/i;
+const norm = s => s.replace(/\s+/g, " ").trim().toLowerCase();
+async function summarize(jobId, code) {
+  const d = data(); const job = d.jobs.find(j => j.id === jobId); const c = job && job.candidates.find(x => x.code === code);
+  if (!c) return;
+  const sample = await getSample();
+  if (!sample) { toast("Summaries need the Claude connection, which this view doesn't have."); return; }
+  ui.summarizing[code] = true; render();
+  const prompt = `You write neutral, factual summaries of resumes for a blind first-pass screening tool. A human recruiter makes every decision.
+
+Rules:
+- Describe what the resume states. Do not evaluate, rank, compare, or judge fit for any job.
+- Never use words such as strong, weak, fit, ideal, qualified, impressive, recommend, good, great, best, promising.
+- Do not mention or infer name, gender, race, ethnicity, age, nationality, religion, disability, or family status.
+- Leave out clubs, affiliations, associations, languages spoken, and locations.
+- Each point's "quote" must be copied exactly, character for character, from the resume text below.
+- Text in square brackets like [name hidden] was removed on purpose. Do not guess it.
+
+Reply with only JSON in this shape:
+{"sentence": "One plain sentence, under 30 words, describing education and work history.", "points": [{"label": "Education" | "Experience" | "Skills listed" | "Certifications", "quote": "exact text from the resume"}]}
+Give 3 to 5 points.
+
+Resume text:
+"""
+${c.plain.slice(0, 6000)}
+"""`;
+  try {
+    const out = await sample.json(prompt, { modelTier: "default", cache: false });
+    const hay = norm(c.plain);
+    const allowed = new Set(["Education", "Experience", "Skills listed", "Certifications"]);
+    let points = Array.isArray(out && out.points) ? out.points : [];
+    /* Keep a point only if it is a verbatim quote from the redacted resume. */
+    points = points.filter(p => p && allowed.has(p.label) && typeof p.quote === "string" && p.quote.trim().length > 3 && hay.includes(norm(p.quote)))
+      .slice(0, 5).map(p => [p.label, p.quote.trim()]);
+    let sentence = typeof (out && out.sentence) === "string" ? out.sentence.trim() : "";
+    const dropped = (Array.isArray(out && out.points) ? out.points.length : 0) - points.length;
+    let note = "";
+    if (sentence && JUDGMENT.test(sentence)) { sentence = ""; note = "The summary sentence used evaluative language and was removed. "; }
+    if (dropped > 0) note += dropped + " point" + (dropped === 1 ? "" : "s") + " did not match the resume word for word and " + (dropped === 1 ? "was" : "were") + " removed.";
+    if (!sentence && !points.length) throw { code: "empty_after_checks" };
+    const d2 = data(); const c2 = d2.jobs.find(j => j.id === jobId).candidates.find(x => x.code === code);
+    c2.summary = { sentence, points, source: "claude", at: Date.now(), note: note.trim() };
+    log(d2, "Generated summary with Claude", code); save(d2);
+  } catch (e) {
+    const msg = { not_granted: "Claude access wasn't allowed for this page. Summaries stay off.", sampling_disabled: "Claude isn't available for this account.", rate_limited: "Too many requests right now. Try again in a minute.", invalid_json: "The summary came back in the wrong format. Try again.", empty_after_checks: "Nothing in the summary could be matched to the resume, so it was discarded. Try again." }[e && e.code] || "The summary didn't finish. Try again.";
+    toast(msg);
+    if (e && (e.code === "not_granted" || e.code === "sampling_disabled")) sampleState = "none";
+  } finally { delete ui.summarizing[code]; render(); }
+}
+
+/* =========================================================
+   Router
+   ========================================================= */
+const root = document.getElementById("root");
+function currentRoute() { return (location.hash || "#home").slice(1) || "home"; }
+function go(r) { if (currentRoute() === r) render(); else location.hash = "#" + r; }
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 3200); }
+function render() {
+  const r = currentRoute();
+  const protectedRoute = r === "jobs" || r === "activity" || r.startsWith("job-");
+  if (protectedRoute && !me()) { toast("Sign in to open the dashboard."); location.replace("#signin"); return; }
+  if ((r === "signin" || r === "signup") && me()) { location.replace("#jobs"); return; }
+  if (r === "signup") root.innerHTML = viewAuth("signup");
+  else if (r === "signin") root.innerHTML = viewAuth("signin");
+  else if (r === "jobs") root.innerHTML = shell("jobs", viewJobs());
+  else if (r === "activity") root.innerHTML = shell("activity", viewActivity());
+  else if (r.startsWith("job-")) { const html = viewJob(r.slice(4)); root.innerHTML = html ? shell("jobs", html) : shell("jobs", `<div class="empty"><h2>Job not found</h2><p class="muted">It may have been deleted.</p><a class="btn" href="#jobs">Back to jobs</a></div>`); }
+  else root.innerHTML = viewHome();
+}
+let lastRoute = null;
+window.addEventListener("hashchange", () => { const r = currentRoute(); if (r !== lastRoute) { ui.lockStep = false; ui.delStep = null; ui.wipeStep = false; ui.errors = {}; window.scrollTo(0, 0); } lastRoute = r; render(); });
+
+/* =========================================================
+   Views: landing
+   ========================================================= */
+function viewHome() {
+  const signed = me();
+  return `<div class="container">
+  <header class="site-nav">
+    <a class="logo" href="#home" aria-label="Blind First Pass home"><span class="bar" aria-hidden="true"></span>Blind First Pass</a>
+    <div class="acts">${signed ? `<a class="btn primary" href="#jobs">Open dashboard</a>` : `<a class="btn ghost" href="#signin">Sign in</a><a class="btn primary" href="#signup">Get started</a>`}</div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">AI-powered insights. Human-led decisions.</span>
+    <h1>Read the work before you read the name.</h1>
+    <p class="lede">Blind First Pass hides names, contact details and pronouns on every resume, so your first screening decision rests on education, experience and skills. Claude writes a short factual summary of each resume. You decide who moves forward.</p>
+    <div class="cta"><a class="btn primary" href="#signup">Create a recruiter account</a><a class="btn" href="#signin">Sign in</a></div>
+  </section>
+
+  <figure class="preview" aria-label="Product preview: reviewing a redacted resume" style="margin:0">
+    <div class="pv-bar"><span><b>Operations Associate</b> <span class="muted">· 8 applicants · 3 decided</span></span><span class="chip">Names sealed until you lock decisions</span></div>
+    <div class="pv-body">
+      <div class="pv-list" aria-hidden="true">
+        <div class="on"><span class="id">A-1047</span><span class="chip review">In review</span></div>
+        <div><span class="id">A-1072</span><span class="chip advanced">Advanced</span></div>
+        <div><span class="id">A-1098</span><span class="chip passed">Passed</span></div>
+        <div><span class="id">A-1121</span><span class="chip advanced">Advanced</span></div>
+        <div><span class="id">A-1150</span><span class="chip new">New</span></div>
+        <div><span class="id">A-1169</span><span class="chip new">New</span></div>
+      </div>
+      <div class="pv-sheet"><div class="sheet">
+        <div class="ln"><span class="redact name">name hidden</span></div>
+        <div class="ln"><span class="redact">location hidden</span> | <span class="redact">phone hidden</span> | <span class="redact">email hidden</span></div>
+        <div class="ln h">Education</div>
+        <div class="ln">B.S. Information Systems, Brooklyn College (CUNY), May 2026</div>
+        <div class="ln h">Experience</div>
+        <div class="ln">IT and Operations Intern, Flatbush Community Credit Union (2025)</div>
+        <div class="ln">- Set up a ticket tracker for staff requests and closed 90% within 2 days</div>
+        <div class="ln">Delivery Coordinator (2023 to 2025)</div>
+        <div class="ln">- Scheduled 12 volunteer drivers and fixed recurring route overlaps</div>
+      </div></div>
+      <div class="pv-side">
+        <span class="eyebrow">Summary</span>
+        <p>Information systems graduate (May 2026) with an IT and operations internship and two years coordinating volunteer delivery drivers.</p>
+        <p class="small muted">Each point quotes the resume. No scores, no fit labels.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="btn adv" style="pointer-events:none">Advance</span><span class="btn pas" style="pointer-events:none">Pass</span></div>
+      </div>
+    </div>
+  </figure>
+
+  <section class="section" aria-labelledby="how">
+    <h2 id="how">How a blind first pass works</h2>
+    <ol class="steps">
+      <li><h3>Upload resumes</h3><p class="muted">Add PDF, Word or text files to a job. Each applicant gets an anonymous ID, like A-1047.</p></li>
+      <li><h3>Review without identity</h3><p class="muted">Names, emails, phone numbers, street addresses, cities, links and pronouns are hidden before anyone reads the resume.</p></li>
+      <li><h3>Decide, lock, then reveal</h3><p class="muted">Advance or pass every applicant. Once you lock the stage, names appear only for the people you advanced.</p></li>
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="ai">
+    <h2 id="ai">Claude organizes. You decide.</h2>
+    <div class="split">
+      <div><h3>What Claude does</h3><ul>
+        <li>Writes a one-sentence description of education and work history.</li>
+        <li>Lists the resume lines it drew from, quoted word for word, so you can check them.</li>
+        <li>Works only from the redacted text. It never sees the name.</li>
+      </ul></div>
+      <div><h3>What only you do</h3><ul>
+        <li>Advance or pass each applicant, with your reason on record.</li>
+        <li>Mark which job requirements the resume shows.</li>
+        <li>Lock decisions and reveal identities. Nothing is rejected automatically.</li>
+      </ul></div>
+    </div>
+    <p class="muted small" style="max-width:70ch">There are no scores, rankings or fit labels anywhere in the product. Summaries describe; they do not judge. Any summary line that can't be matched to the resume is removed.</p>
+  </section>
+
+  <section class="section" aria-labelledby="feat">
+    <h2 id="feat">Built for the first screen</h2>
+    <div class="features">
+      <div><h3>Requirements you check yourself</h3><p class="muted">List what the job needs. While you read, tick the requirements the resume shows. Your marks, not a model's.</p></div>
+      <div><h3>A record of every action</h3><p class="muted">Uploads, decisions, reveals and exports are logged with who did them and when.</p></div>
+      <div><h3>Identity kept apart</h3><p class="muted">Names and contact details are stored separately from the resume you review, and only the reveal step reads them.</p></div>
+      <div><h3>Retention and deletion</h3><p class="muted">Set how long applicant records are kept. Delete one applicant or all applicant data at any time.</p></div>
+    </div>
+  </section>
+
+  <section class="final">
+    <h2>Make your next first pass about the work.</h2>
+    <p class="muted" style="max-width:60ch">Blind First Pass reduces some sources of bias at the first screen. It does not remove bias from hiring: schools, clubs and languages can still appear on a resume, and later stages need their own care.</p>
+    <a class="btn primary" href="#signup">Create a recruiter account</a>
+  </section>
+
+  <footer class="site"><span>Blind First Pass · prototype for demonstration</span><span>Sample applicants are fictional.</span></footer>
+  </div>`;
+}
+
+/* =========================================================
+   Views: auth (demo)
+   ========================================================= */
+function viewAuth(mode) {
+  const e = ui.errors;
+  const f = (id, label, type, extra = "") => `<div class="field ${e[id] ? "invalid" : ""}"><label class="lbl" for="${id}">${label}</label><input type="${type}" id="${id}" name="${id}" ${extra} aria-invalid="${!!e[id]}" ${e[id] ? `aria-describedby="${id}-err"` : ""}>${e[id] ? `<span class="err" id="${id}-err">${esc(e[id])}</span>` : ""}</div>`;
+  return `<div class="container">
+  <header class="site-nav"><a class="logo" href="#home"><span class="bar" aria-hidden="true"></span>Blind First Pass</a></header>
+  <div class="auth"><div class="auth-card">
+    <h1>${mode === "signup" ? "Create your recruiter account" : "Sign in"}</h1>
+    <form id="${mode}Form" novalidate>
+      ${e.form ? `<div class="notice alert" role="alert">${esc(e.form)}</div>` : ""}
+      ${mode === "signup" ? f("name", "Full name", "text", 'autocomplete="name"') + f("company", "Company", "text", 'autocomplete="organization"') : ""}
+      ${f("email", "Work email", "email", 'autocomplete="email"')}
+      ${f("password", "Password", "password", `autocomplete="${mode === "signup" ? "new-password" : "current-password"}"`)}
+      ${mode === "signup" ? `<fieldset style="border:0;padding:0;margin:0;display:grid;gap:6px"><legend class="lbl">Your role</legend>
+        <div class="seg2"><label><input type="radio" name="role" value="admin" checked><span><b>Hiring lead</b><br><span class="muted small">Can lock and reveal names</span></span></label>
+        <label><input type="radio" name="role" value="reviewer"><span><b>Reviewer</b><br><span class="muted small">Reviews and decides only</span></span></label></div></fieldset>` : ""}
+      <button class="btn primary" type="submit" style="justify-content:center">${mode === "signup" ? "Create account" : "Sign in"}</button>
+      <p class="small muted" style="text-align:center">${mode === "signup" ? `Already have an account? <a href="#signin">Sign in</a>` : `New here? <a href="#signup">Create an account</a>`}</p>
+    </form>
+    <p class="demo-note"><b>Demo sign-in.</b> Accounts and data are saved only in this browser for the pitch demo. Passwords are hashed before saving, but this is not production security. The real product uses server-side sessions.</p>
+  </div></div></div>`;
+}
+async function handleAuth(mode, form) {
+  const val = n => (form.elements[n] ? form.elements[n].value.trim() : "");
+  const e = {};
+  const email = val("email").toLowerCase(), pw = form.elements.password.value;
+  if (mode === "signup") {
+    if (!val("name")) e.name = "Enter your name.";
+    if (!val("company")) e.company = "Enter your company.";
+  }
+  if (!email) e.email = "Enter your work email.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Enter an email like name@company.com.";
+  if (!pw) e.password = "Enter a password.";
+  else if (mode === "signup" && pw.length < 8) e.password = "Use at least 8 characters.";
+  const list = users();
+  if (!Object.keys(e).length && mode === "signup" && list.some(u => u.email === email)) e.email = "An account with this email already exists. Sign in instead.";
+  if (Object.keys(e).length) { ui.errors = e; render(); const first = document.querySelector(".invalid input"); if (first) first.focus(); return; }
+  if (mode === "signup") {
+    const salt = uid();
+    const u = { id: uid(), orgId: uid(), name: val("name"), company: val("company"), email, role: form.elements.role.value, salt, pw: await hashPw(pw, salt), createdAt: Date.now() };
+    list.push(u); store.set("bfp.users", list); store.set("bfp.session", { userId: u.id, at: Date.now() });
+    const d = { jobs: [], log: [], retention: 12, seq: 1000 }; const v = {};
+    store.set("bfp.data." + u.orgId, d);
+    log(d, "Created account", u.company); seedSampleJob(d, v); save(d); saveVault(v);
+    ui.errors = {}; toast("Account created. A sample job is ready to review."); go("jobs");
+  } else {
+    const u = list.find(x => x.email === email);
+    const ok = u && (await hashPw(pw, u.salt)) === u.pw;
+    if (!ok) { ui.errors = { form: "That email and password don't match an account in this browser." }; render(); return; }
+    store.set("bfp.session", { userId: u.id, at: Date.now() });
+    const d = data(); log(d, "Signed in"); save(d);
+    ui.errors = {}; go("jobs");
+  }
+}
+
+/* =========================================================
+   Views: app shell, jobs
+   ========================================================= */
+function shell(tab, body) {
+  const u = me();
+  return `<header class="appbar"><div class="container">
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <a class="logo" href="#jobs" style="font-size:19px"><span class="bar" aria-hidden="true"></span>Blind First Pass</a>
+      <nav aria-label="Dashboard"><a href="#jobs" class="${tab === "jobs" ? "on" : ""}">Jobs</a><a href="#activity" class="${tab === "activity" ? "on" : ""}">Activity and data</a></nav>
+    </div>
+    <div class="who"><span><b>${esc(u.name)}</b> <span class="co">· ${esc(u.company)} · ${u.role === "admin" ? "Hiring lead" : "Reviewer"}</span></span><button class="btn" data-act="signout">Sign out</button></div>
+  </div></header>
+  <main class="app container">${body}</main>`;
+}
+function counts(job) { const c = { new: 0, review: 0, advanced: 0, passed: 0 }; job.candidates.forEach(x => c[x.status]++); return c; }
+function viewJobs() {
+  const d = data();
+  const e = ui.errors;
+  const form = ui.newJob ? `<form class="panel" id="jobForm" novalidate>
+      <h2>New job</h2>
+      <div class="formgrid">
+        <div class="field ${e.title ? "invalid" : ""}"><label class="lbl" for="title">Job title</label><input type="text" id="title" name="title">${e.title ? `<span class="err">${esc(e.title)}</span>` : ""}</div>
+        <div class="field"><label class="lbl" for="location">Location</label><input type="text" id="location" name="location" placeholder="e.g. Midtown Manhattan, hybrid"></div>
+        <div class="field ${e.pay ? "invalid" : ""}"><label class="lbl" for="payMin">Pay from ($/hour)</label><input type="number" id="payMin" name="payMin" min="0" step="0.5"></div>
+        <div class="field ${e.pay ? "invalid" : ""}"><label class="lbl" for="payMax">Pay to ($/hour)</label><input type="number" id="payMax" name="payMax" min="0" step="0.5">${e.pay ? `<span class="err">${esc(e.pay)}</span>` : ""}</div>
+      </div>
+      <div class="field ${e.reqs ? "invalid" : ""}"><label class="lbl" for="reqs">Requirements, one per line</label><textarea id="reqs" name="reqs" rows="4" placeholder="Uses spreadsheets at work&#10;Has scheduled shifts or appointments"></textarea>${e.reqs ? `<span class="err">${esc(e.reqs)}</span>` : `<span class="small muted">You will tick these yourself while reviewing. Keep them about the work, not the person.</span>`}</div>
+      <p class="small muted">NYC requires a good-faith pay range on job postings for employers with 4 or more employees.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="submit">Create job</button><button class="btn" type="button" data-act="newjob-cancel">Cancel</button></div>
+    </form>` : "";
+  const rows = d.jobs.map(j => { const c = counts(j); const dec = c.advanced + c.passed; return `<tr class="link" data-act="open-job" data-id="${j.id}" tabindex="0">
+      <td><b>${esc(j.title)}</b>${j.sample ? ` <span class="chip">Sample</span>` : ""}<div class="small muted">${esc(j.location || "")}</div></td>
+      <td class="num">${j.candidates.length}</td><td class="num">${dec} of ${j.candidates.length}</td>
+      <td>${j.locked ? `<span class="chip revealed">Locked</span>` : `<span class="chip review">Open</span>`}</td>
+      <td class="small muted">${fmtDate(j.createdAt)}</td></tr>`; }).join("");
+  return `<div class="pagehead"><div><span class="eyebrow">${esc(me().company)}</span><h1>Jobs</h1></div>${ui.newJob ? "" : `<button class="btn primary" data-act="newjob">New job</button>`}</div>
+    ${form}
+    ${d.jobs.length ? `<div class="panel" style="padding:6px 8px"><div class="tablewrap"><table><thead><tr><th>Job</th><th>Applicants</th><th>Decided</th><th>Stage</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table></div></div>`
+      : (ui.newJob ? "" : `<div class="empty"><h2>No jobs yet</h2><p class="muted">Create a job, add its requirements, then upload resumes.</p><button class="btn primary" data-act="newjob">Create your first job</button></div>`)}`;
+}
+
+/* =========================================================
+   Views: job workbench
+   ========================================================= */
+function visibleCandidates(job) {
+  const q = ui.search.trim().toLowerCase();
+  let list = job.candidates.filter(c => (ui.status === "all" || c.status === ui.status) && (!q || c.code.toLowerCase().includes(q) || c.plain.toLowerCase().includes(q)));
+  const by = { "received-desc": (a, b) => b.receivedAt - a.receivedAt, "received-asc": (a, b) => a.receivedAt - b.receivedAt, "id": (a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }), "status": (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.receivedAt - b.receivedAt }[ui.sort];
+  return list.sort(by);
+}
+function viewJob(id) {
+  const d = data(); const job = d.jobs.find(j => j.id === id); if (!job) return null;
+  const v = vault(); const u = me();
+  const c = counts(job); const total = job.candidates.length; const open = c.new + c.review;
+  const list = visibleCandidates(job);
+  let cur = job.candidates.find(x => x.code === ui.sel[id]);
+  if (!cur || !list.includes(cur)) cur = list[0] || null;
+  if (cur) ui.sel[id] = cur.code;
+
+  const uploads = ui.uploads.filter(x => x.job === id);
+  const upHtml = uploads.length ? `<div class="uploads" aria-live="polite">${uploads.map(x => `<div><span>${esc(x.name)}</span><span class="st-${x.state}">${x.state === "reading" ? `<span class="spinner" aria-hidden="true"></span> Reading and redacting…` : x.state === "done" ? `Added as <b class="id">${x.code}</b>` : esc(x.msg)}</span></div>`).join("")}</div>` : "";
+
+  const advanced = job.candidates.filter(x => x.status === "advanced");
+  const reveal = job.locked ? `<section class="panel reveal">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h2>Revealed: ${advanced.length} advanced applicant${advanced.length === 1 ? "" : "s"}</h2><span class="small muted">Locked ${fmtTime(job.lockedAt)}</span></div>
+      <div class="tablewrap"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Your reason</th></tr></thead><tbody>
+      ${advanced.map(a => { const p = v[a.code] || {}; return `<tr><td class="id">${a.code}</td><td>${esc(p.name)}</td><td>${esc(p.email)}</td><td class="num">${esc(p.phone)}</td><td class="small">${esc(a.reason || "None given")}</td></tr>`; }).join("") || `<tr><td colspan="5" class="muted">No one was advanced.</td></tr>`}
+      </tbody></table></div>
+      <label class="lbl" for="copyOut">Contact list</label>
+      <textarea class="copy" id="copyOut" readonly>${esc(advanced.map(a => { const p = v[a.code] || {}; return [p.name, p.email, p.phone].filter(Boolean).join(", "); }).join("\n"))}</textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" data-act="copy">Copy contact list</button><span class="small muted">${c.passed} passed applicant${c.passed === 1 ? "" : "s"} stay anonymous.</span></div>
+    </section>` : "";
+
+  const lockArea = job.locked ? "" : (ui.lockStep
+    ? `<div class="confirm" role="alert"><span>Lock all ${total} decisions? They can't be changed afterward, and ${c.advanced} name${c.advanced === 1 ? "" : "s"} will be revealed.</span><button class="btn primary" data-act="lock-confirm">Lock and reveal</button><button class="btn" data-act="lock-cancel">Cancel</button></div>`
+    : `<button class="btn primary" data-act="lock" ${open || !total || u.role !== "admin" ? "disabled" : ""} title="${u.role !== "admin" ? "Only a hiring lead can reveal names" : open ? "Decide every applicant first" : ""}">Lock and reveal</button>`);
+
+  let detail;
+  if (!cur) {
+    detail = total ? `<div class="empty"><h2>No applicants match</h2><p class="muted">Clear the search or choose another status.</p><button class="btn" data-act="clear-filters">Clear filters</button></div>`
+      : `<div class="empty"><h2>No resumes yet</h2><p class="muted">Upload PDF, Word or text resumes. Identifying details are hidden before anyone reads them.</p><label class="btn primary" for="fileIn">Upload resumes</label></div>`;
+  } else {
+    const s = cur.summary; const busy = ui.summarizing[cur.code];
+    const canAsk = sampleState === "ready";
+    const sumHtml = `<section class="summary" aria-labelledby="sumh">
+      <div class="top"><h3 id="sumh">Summary</h3>
+        ${busy ? `<span class="small muted"><span class="spinner" aria-hidden="true"></span> Claude is reading the redacted resume…</span>`
+          : canAsk ? `<button class="btn" data-act="summarize">${s ? "Regenerate with Claude" : "Summarize with Claude"}</button>` : ""}</div>
+      ${s ? `${s.sentence ? `<p class="sent">${esc(s.sentence)}</p>` : ""}
+        ${s.points.length ? `<dl>${s.points.map(([l, q]) => `<dt>${esc(l)}</dt><dd><q>${esc(q)}</q></dd>`).join("")}</dl>` : ""}
+        <p class="src">${s.source === "claude" ? `Written by Claude from the redacted resume, ${fmtTime(s.at)}. Every quote was checked against the resume.` : "Prepared summary for this fictional sample applicant."} It describes the resume and makes no judgment. Read the resume before deciding.${s.note ? " " + esc(s.note) : ""}</p>`
+      : `<p class="muted">${busy ? "" : canAsk ? "No summary yet. Claude will describe education, experience and skills, quoting the resume." : sampleState === "unknown" ? "Checking for the Claude connection…" : "Summaries need the Claude connection, which this view doesn't have. The resume below is complete."}</p>`}
+    </section>`;
+    const reqHtml = job.requirements.length ? `<section class="reqs" aria-labelledby="reqh"><h3 id="reqh">Requirements: your marks</h3>
+      ${job.requirements.map((r, i) => `<label><input type="checkbox" data-act="check" data-i="${i}" ${cur.checks[i] ? "checked" : ""} ${job.locked ? "disabled" : ""}><span>${esc(r)}</span></label>`).join("")}
+      <span class="small muted">Tick what the resume shows. Only you set these.</span></section>` : "";
+    const reasons = cur.status === "advanced" ? ["Meets the role's needs", "Relevant experience", "Skills match the requirements", "Other"] : ["Missing a required skill", "Less relevant experience", "Other"];
+    detail = `<div class="detail">
+      <div class="dhead"><h2 class="id" style="letter-spacing:.02em">${cur.code}</h2><span class="small muted">Received ${fmtDate(cur.receivedAt)} · <span class="chip ${cur.status}">${STATUS_LABEL[cur.status]}</span></span></div>
+      ${cur.nameFound ? "" : `<div class="notice alert">No name was found at the top of this resume. Check that nothing identifying is still visible before you read on.</div>`}
+      ${sumHtml}
+      ${reqHtml}
+      <article class="sheet" aria-label="Redacted resume">${cur.html}</article>
+      <div class="decide">
+        <div class="grp">
+          <button class="btn adv ${cur.status === "advanced" ? "sel" : ""}" data-act="decide" data-d="advanced" ${job.locked ? "disabled" : ""}>Advance <kbd>A</kbd></button>
+          <button class="btn pas ${cur.status === "passed" ? "sel" : ""}" data-act="decide" data-d="passed" ${job.locked ? "disabled" : ""}>Pass <kbd>P</kbd></button>
+          ${(cur.status === "advanced" || cur.status === "passed") ? `<label class="small muted" for="reason">Reason</label><select id="reason" data-act="reason" ${job.locked ? "disabled" : ""}><option value="">Optional</option>${reasons.map(r => `<option ${cur.reason === r ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>` : ""}
+        </div>
+        <div class="grp">
+          ${ui.delStep === cur.code ? `<span class="small">Delete ${cur.code} and its identity record?</span><button class="btn danger" data-act="del-confirm">Delete</button><button class="btn" data-act="del-cancel">Keep</button>`
+            : `${job.locked ? "" : `<button class="btn ghost small" data-act="del">Delete</button>`}<button class="btn" data-act="next">Next undecided</button>`}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="pagehead">
+      <div style="display:grid;gap:6px"><a href="#jobs" class="small muted" style="text-decoration:none">← All jobs</a><h1>${esc(job.title)}</h1>
+        <div class="jobmeta">${job.location ? `<span>${esc(job.location)}</span>` : ""}${job.payMin ? `<span>$${job.payMin} to $${job.payMax} an hour</span>` : ""}<span>${total} applicant${total === 1 ? "" : "s"}</span>${job.sample ? `<span>Sample job, fictional applicants</span>` : ""}</div>
+        <div class="counts"><span class="chip new">${c.new} new</span><span class="chip review">${c.review} in review</span><span class="chip advanced">${c.advanced} advanced</span><span class="chip passed">${c.passed} passed</span></div>
+      </div>
+      <div style="display:grid;gap:6px;justify-items:end">${lockArea}${!job.locked && u.role !== "admin" ? `<span class="small muted">Only a hiring lead can reveal names.</span>` : !job.locked && open ? `<span class="small muted">${open} still undecided</span>` : ""}</div>
+    </div>
+    ${reveal}
+    <div class="toolbar">
+      <div class="field wide"><label class="lbl" for="q">Search resumes</label><input type="search" id="q" value="${esc(ui.search)}" placeholder="Skill, school, or applicant ID"></div>
+      <div class="field"><label class="lbl" for="st">Status</label><select id="st"><option value="all">All statuses</option>${Object.keys(STATUS_LABEL).map(k => `<option value="${k}" ${ui.status === k ? "selected" : ""}>${STATUS_LABEL[k]}</option>`).join("")}</select></div>
+      <div class="field"><label class="lbl" for="so">Sort</label><select id="so">
+        <option value="received-desc" ${ui.sort === "received-desc" ? "selected" : ""}>Newest received</option><option value="received-asc" ${ui.sort === "received-asc" ? "selected" : ""}>Oldest received</option>
+        <option value="id" ${ui.sort === "id" ? "selected" : ""}>Applicant ID</option><option value="status" ${ui.sort === "status" ? "selected" : ""}>Status</option></select></div>
+      ${job.locked ? "" : `<div><input type="file" id="fileIn" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple hidden><label class="btn" for="fileIn" style="cursor:pointer">Upload resumes</label></div>`}
+    </div>
+    ${upHtml}
+    <div class="bench">
+      <aside class="clist" aria-label="Applicants"><div class="head"><span>${list.length} of ${total} shown</span><span>Names aren't searchable</span></div>
+        <ul>${list.map(x => `<li><button class="row-item ${cur && x.code === cur.code ? "on" : ""}" data-act="select" data-code="${x.code}"><span class="id">${x.code}</span><span class="chip ${x.status}">${STATUS_LABEL[x.status]}</span><span class="rcv">Received ${fmtDate(x.receivedAt)}</span></button></li>`).join("") || `<li class="small muted" style="padding:10px">No matches.</li>`}</ul>
+      </aside>
+      ${detail}
+    </div>`;
+}
+
+/* =========================================================
+   Views: activity and data
+   ========================================================= */
+function viewActivity() {
+  const d = data(); const n = d.jobs.reduce((s, j) => s + j.candidates.length, 0);
+  return `<div class="pagehead"><div><span class="eyebrow">${esc(me().company)}</span><h1>Activity and data</h1></div></div>
+  <section class="panel">
+    <h2>Retention</h2>
+    <div class="formgrid" style="align-items:end">
+      <div class="field"><label class="lbl" for="ret">Keep applicant records for</label><select id="ret">${[6, 12, 24].map(m => `<option value="${m}" ${d.retention === m ? "selected" : ""}>${m} months after the hiring decision</option>`).join("")}</select></div>
+    </div>
+    <p class="small muted">Federal rules require employers to keep application records for at least one year (29 CFR 1602.14). Check with counsel before choosing less. In this demo the setting is recorded but no automatic deletion runs; the hosted version runs it nightly.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${ui.wipeStep
+      ? `<span class="small">Delete all ${n} applicant records and identity data? Jobs stay.</span><button class="btn danger" data-act="wipe-confirm">Delete all applicant data</button><button class="btn" data-act="wipe-cancel">Cancel</button>`
+      : `<button class="btn danger" data-act="wipe" ${n ? "" : "disabled"}>Delete all applicant data</button><span class="small muted">${n} applicant record${n === 1 ? "" : "s"} stored</span>`}</div>
+  </section>
+  <section class="panel">
+    <h2>Audit log</h2>
+    <p class="small muted">Every account action, upload, decision, reveal and export, newest first.</p>
+    <div class="tablewrap"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th></tr></thead><tbody>
+      ${d.log.map(e => `<tr><td class="num small">${fmtTime(e.t)}</td><td>${esc(e.who)}</td><td>${esc(e.action)}</td><td class="id small">${esc(e.record)}</td></tr>`).join("")}
+    </tbody></table></div>
+  </section>
+  <p class="demo-note">Demo storage: this data lives only in this browser. In the hosted version, identity records sit in a separate encrypted store that only the reveal step can read, and access depends on your role.</p>`;
+}
+
+/* =========================================================
+   Actions
+   ========================================================= */
+function jobFromRoute() { const r = currentRoute(); return r.startsWith("job-") ? r.slice(4) : null; }
+function mutateCandidate(fn) {
+  const id = jobFromRoute(); const d = data(); const job = d.jobs.find(j => j.id === id); if (!job) return;
+  const c = job.candidates.find(x => x.code === ui.sel[id]); if (!c) return;
+  fn(d, job, c); save(d); render();
+}
+function decide(status) {
+  mutateCandidate((d, job, c) => {
+    if (job.locked || c.status === status) return;
+    c.status = status; c.reason = "";
+    log(d, status === "advanced" ? "Advanced" : "Passed", c.code);
+  });
+}
+function nextUndecided() {
+  const id = jobFromRoute(); const d = data(); const job = d.jobs.find(j => j.id === id); if (!job) return;
+  const list = visibleCandidates(job); const i = list.findIndex(x => x.code === ui.sel[id]);
+  const rest = [...list.slice(i + 1), ...list.slice(0, Math.max(i, 0))];
+  let n = rest.find(x => x.status === "new" || x.status === "review");
+  if (!n) n = job.candidates.find(x => x.status === "new" || x.status === "review");
+  if (!n) { toast(job.locked ? "This stage is locked." : "Every applicant has a decision. Lock the stage to reveal names."); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  if (!list.includes(n)) { ui.search = ""; ui.status = "all"; }
+  selectCandidate(n.code);
+}
+function selectCandidate(code) {
+  const id = jobFromRoute(); ui.sel[id] = code; ui.delStep = null;
+  const d = data(); const job = d.jobs.find(j => j.id === id); const c = job && job.candidates.find(x => x.code === code);
+  if (c && c.status === "new" && !job.locked) { c.status = "review"; log(d, "Opened for review", code); save(d); }
+  render();
+  const det = document.querySelector(".detail"); if (det && window.matchMedia("(max-width: 860px)").matches) det.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+async function readFile(file) {
+  const name = file.name.toLowerCase();
+  if (file.size > 5 * 1024 * 1024) throw new Error("File is over 5 MB.");
+  if (name.endsWith(".txt") || file.type === "text/plain") return await file.text();
+  if (name.endsWith(".docx")) {
+    if (!window.mammoth) throw new Error("Word reader didn't load. Try a PDF.");
+    const r = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return r.value.split(/\n+/).map(s => s.trim()).filter(Boolean).join("\n");
+  }
+  if (name.endsWith(".pdf") || file.type === "application/pdf") {
+    if (!window.pdfjsLib) throw new Error("PDF reader didn't load. Try a text file.");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const out = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const c = await (await pdf.getPage(p)).getTextContent();
+      let line = "", lastY = null;
+      for (const it of c.items) { const y = Math.round(it.transform[5]); if (lastY !== null && Math.abs(y - lastY) > 2) { out.push(line); line = ""; } line += it.str; lastY = y; }
+      out.push(line);
+    }
+    return out.map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
+  }
+  throw new Error("Unsupported file type. Use PDF, Word (.docx) or text.");
+}
+async function handleUpload(files) {
+  const id = jobFromRoute();
+  for (const file of files) {
+    const row = { job: id, name: file.name, state: "reading" }; ui.uploads.unshift(row); render();
+    try {
+      const text = (await readFile(file)).trim();
+      if (text.length < 40) throw new Error("No readable text found. Scanned PDFs can't be read yet.");
+      const d = data(); const v = vault(); const job = d.jobs.find(j => j.id === id);
+      const c = makeCandidate(d, v, text, Date.now(), null);
+      job.candidates.push(c); log(d, "Uploaded and redacted resume", c.code); save(d); saveVault(v);
+      row.state = "done"; row.code = c.code; ui.sel[id] = c.code;
+    } catch (err) { row.state = "error"; row.msg = err.message || "Couldn't read this file."; }
+    render();
+  }
+  setTimeout(() => { ui.uploads = ui.uploads.filter(x => x.state === "error" || x.job !== id); if (jobFromRoute() === id) render(); }, 6000);
+}
+
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act; const id = jobFromRoute();
+  if (act === "check" || act === "reason") return;
+  if (act === "signout") { const d = data(); log(d, "Signed out"); save(d); store.del("bfp.session"); ui.sel = {}; toast("Signed out."); go("home"); }
+  else if (act === "newjob") { ui.newJob = true; ui.errors = {}; render(); const t = document.getElementById("title"); if (t) t.focus(); }
+  else if (act === "newjob-cancel") { ui.newJob = false; ui.errors = {}; render(); }
+  else if (act === "open-job") go("job-" + el.dataset.id);
+  else if (act === "select") selectCandidate(el.dataset.code);
+  else if (act === "decide") decide(el.dataset.d);
+  else if (act === "next") nextUndecided();
+  else if (act === "summarize") summarize(id, ui.sel[id]);
+  else if (act === "clear-filters") { ui.search = ""; ui.status = "all"; render(); }
+  else if (act === "lock") { ui.lockStep = true; render(); }
+  else if (act === "lock-cancel") { ui.lockStep = false; render(); }
+  else if (act === "lock-confirm") {
+    const d = data(); const job = d.jobs.find(j => j.id === id);
+    if (me().role !== "admin" || job.candidates.some(x => x.status === "new" || x.status === "review")) { ui.lockStep = false; render(); return; }
+    job.locked = true; job.lockedAt = Date.now(); ui.lockStep = false;
+    log(d, "Locked decisions", job.title);
+    job.candidates.filter(x => x.status === "advanced").forEach(x => log(d, "Revealed identity", x.code));
+    save(d); render(); toast("Decisions locked. Names revealed for advanced applicants.");
+  }
+  else if (act === "copy") {
+    const ta = document.getElementById("copyOut");
+    const done = () => { const d = data(); const job = d.jobs.find(j => j.id === id); log(d, "Exported contact list", job.title); save(d); toast("Contact list copied."); };
+    try { navigator.clipboard.writeText(ta.value).then(done, () => { ta.select(); toast("Press Ctrl+C or Cmd+C to copy."); }); } catch (err) { ta.select(); toast("Press Ctrl+C or Cmd+C to copy."); }
+  }
+  else if (act === "del") { ui.delStep = ui.sel[id]; render(); }
+  else if (act === "del-cancel") { ui.delStep = null; render(); }
+  else if (act === "del-confirm") {
+    const d = data(); const v = vault(); const job = d.jobs.find(j => j.id === id); const code = ui.delStep;
+    job.candidates = job.candidates.filter(x => x.code !== code); delete v[code];
+    log(d, "Deleted applicant and identity record", code); save(d); saveVault(v); ui.delStep = null; toast(code + " deleted."); render();
+  }
+  else if (act === "wipe") { ui.wipeStep = true; render(); }
+  else if (act === "wipe-cancel") { ui.wipeStep = false; render(); }
+  else if (act === "wipe-confirm") {
+    const d = data(); const n = d.jobs.reduce((s, j) => s + j.candidates.length, 0);
+    d.jobs.forEach(j => j.candidates = []); saveVault({}); log(d, "Deleted all applicant data", n + " records"); save(d); ui.wipeStep = false; toast("All applicant data deleted."); render();
+  }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") { const tr = e.target.closest && e.target.closest("tr[data-act='open-job']"); if (tr) { go("job-" + tr.dataset.id); return; } }
+  if (!jobFromRoute() || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+  if (e.key === "a" || e.key === "A") decide("advanced");
+  if (e.key === "p" || e.key === "P") decide("passed");
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.act === "check") mutateCandidate((d, job, c) => { c.checks[t.dataset.i] = t.checked; log(d, (t.checked ? "Marked" : "Unmarked") + " requirement: " + job.requirements[t.dataset.i], c.code); });
+  else if (t.dataset && t.dataset.act === "reason") mutateCandidate((d, job, c) => { c.reason = t.value; log(d, "Recorded reason: " + (t.value || "none"), c.code); });
+  else if (t.id === "st") { ui.status = t.value; render(); }
+  else if (t.id === "so") { ui.sort = t.value; render(); }
+  else if (t.id === "fileIn") { handleUpload(Array.from(t.files)); }
+  else if (t.id === "ret") { const d = data(); d.retention = Number(t.value); log(d, "Set retention to " + t.value + " months"); save(d); toast("Retention set to " + t.value + " months."); render(); }
+});
+let searchTimer;
+document.addEventListener("input", e => {
+  if (e.target.id !== "q") return;
+  ui.search = e.target.value; clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { const pos = e.target.selectionStart; render(); const q = document.getElementById("q"); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }, 180);
+});
+document.addEventListener("submit", e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.id === "signupForm") handleAuth("signup", f);
+  else if (f.id === "signinForm") handleAuth("signin", f);
+  else if (f.id === "jobForm") {
+    const g = n => f.elements[n].value.trim();
+    const errs = {}; const min = Number(g("payMin")), max = Number(g("payMax"));
+    if (!g("title")) errs.title = "Enter a job title.";
+    if (!g("payMin") || !g("payMax") || min <= 0 || max < min) errs.pay = "Enter a pay range where the top is at least the bottom.";
+    const reqs = g("reqs").split("\n").map(s => s.trim()).filter(Boolean);
+    if (!reqs.length) errs.reqs = "Add at least one requirement.";
+    if (Object.keys(errs).length) { const keep = { title: g("title"), location: g("location"), payMin: g("payMin"), payMax: g("payMax"), reqs: g("reqs") }; ui.errors = errs; render(); Object.entries(keep).forEach(([k, v]) => { const el = document.getElementById(k); if (el) el.value = v; }); return; }
+    const d = data(); const job = { id: uid(), title: g("title"), location: g("location"), payMin: min, payMax: max, requirements: reqs.slice(0, 8), createdAt: Date.now(), locked: false, candidates: [] };
+    d.jobs.unshift(job); log(d, "Created job", job.title); save(d); ui.newJob = false; ui.errors = {}; go("job-" + job.id);
+  }
+});
+lastRoute = currentRoute();
+render();
+</script>
+
+</body></html>
